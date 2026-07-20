@@ -90,10 +90,13 @@ c2st(draws_a, draws_b)
 - `"maf"` — a **Masked Autoregressive Flow** (Papamakarios et al., 2017), the
   default flow family in Python `sbi`. Exact densities via invertible
   transforms; strong on non-Gaussian posteriors. Requires `torch`.
+- `"nsf"` — a **Neural Spline Flow** (Durkan et al., 2019): autoregressive flow
+  with monotonic rational-quadratic spline transforms, the most expressive
+  option per layer. Requires `torch`.
 - `"linear_gaussian"` — a **closed-form** conditional Gaussian. No neural net, no
   `torch`; *exact* for linear-Gaussian models, great as a fast baseline.
 
-Neural spline flows (NSF), embedding networks, and sequential NPE are on the
+Embedding networks and sequential NPE are on the
 [roadmap](docs/verification-roadmap.md).
 
 ## How is this verified?

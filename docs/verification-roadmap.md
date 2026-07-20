@@ -132,12 +132,19 @@ leakage handling) and documented.
       Tests: mask autoregressive invariants, forward/inverse round trip,
       identity-init log-prob equals standard normal, analytic linear-Gaussian
       parity (`tests/testthat/test-maf.R`).
-- [ ] **NSF** (rational-quadratic spline autoregressive flow) behind
-      `density_estimator = "nsf"`. Plan: reuse `made_masks`; MADE outputs
-      `3K - 1` spline parameters per dimension (K bin widths, K heights,
-      K - 1 interior derivatives, softmax/softplus-constrained, linear tails
-      outside `[-B, B]`, B ≈ 3); same stack/permutation structure as MAF.
-- [ ] Verify each against analytic + `sbi` on SLCP and Two Moons.
+- [x] **NSF** (rational-quadratic spline autoregressive flow) behind
+      `npe(density_estimator = "nsf", n_transforms =, n_bins =, tail_bound =)`.
+      Implemented in `R/nsf.R`: `rq_spline()` (batched monotonic RQ spline
+      with linear tails outside `[-B, B]`, analytic inverse),
+      `nsf_made_module()` (reuses `made_masks()`; emits `3K - 1` spline
+      params/dim), `nsf_module()`/`nsf_log_prob_tensor()`/`nsf_inverse()`
+      (same stack/reversal structure as MAF). Note: Python `sbi`'s NSF uses
+      coupling layers; ours is autoregressive (documented in `R/nsf.R`).
+      Tests: spline round trip + tail identity + log-det cancellation, full
+      stack forward/inverse round trip, analytic linear-Gaussian parity
+      (`tests/testthat/test-nsf.R`).
+- [ ] Verify MAF/NSF against Python `sbi` on SLCP and Two Moons via
+      `inst/benchmarks/` (harness is ready; needs a Python env with sbi).
 
 ### v0.4 — Embedding networks & structured data
 
@@ -163,13 +170,95 @@ leakage handling) and documented.
 ## Part C — Milestone checklist
 
 - [x] M0 Pilot: linear-Gaussian analytic parity (torch-free) + MDN parity.
-- [ ] M1 CI green with cached libtorch; Level-1 suite enforced.
-- [ ] M2 Two Moons bimodality + SBC calibration demonstrated.
-- [ ] M3 `sbi` head-to-head harness; Gaussian Linear & Two Moons C2ST ≤ 0.60.
-- [ ] M4 MAF/NSF estimators; SLCP parity with `sbi`.
+- [~] M1 CI configured with cached libtorch (`test-torch` job) — needs one
+      green run on GitHub to confirm.
+- [~] M2 Two Moons bimodality test added (`test-two-moons.R`, torch-gated);
+      SBC calibration study on two moons still to run/plot.
+- [~] M3 `sbi` head-to-head harness scripted (`inst/benchmarks/`); running it
+      and recording C2ST ≤ 0.60 still open.
+- [~] M4 MAF and NSF estimators implemented + analytic parity tests; SLCP
+      parity with `sbi` still open.
 - [ ] M5 Embedding nets; a structured-data case study.
 - [ ] M6 Sequential NPE-C; efficiency parity with `sbi`.
 - [ ] M7 CRAN-ready: full docs, vignettes, `R CMD check` clean.
+
+---
+
+## Part E — Handoff: current state & next actions
+
+*Everything below is written so an agent (or human) with no other context can
+pick up the work. Last updated after the v0.2/v0.3 implementation push
+(commits `24ad8d5..`, July 2026).*
+
+### What exists right now
+
+| Area | File(s) | State |
+|---|---|---|
+| Training engine | `R/train.R` | done; restarts, plateau LR decay, grad clipping, history |
+| MDN | `R/mdn.R` | done, trains via shared engine |
+| MAF | `R/flows.R` | done + tested (round trip, analytic parity) |
+| NSF | `R/nsf.R` | done + tested; autoregressive (sbi uses coupling) |
+| Tasks | `R/tasks.R` | gaussian_linear (analytic ref), two_moons, slcp |
+| Benchmarks vs sbi | `inst/benchmarks/01..04` | scripted, **never executed** |
+| Summaries/tidy | `R/summaries.R` | done |
+| Coverage plot | `plot_coverage()` in `R/plotting.R` | done |
+| CI | `.github/workflows/R-CMD-check.yaml` | check + test-torch jobs, unverified |
+| NAMESPACE / man | hand-maintained | new exports have hand-written `.Rd`s |
+
+Key contract: every estimator implements `de_log_prob(de, theta, x)` and
+`de_sample(de, x, n)` in **standardized** space (`R/density_estimator.R`);
+`posterior.R` handles standardization, Jacobians, and leakage correction.
+Neural estimators train via `train_conditional_de(build_net, log_prob_fn, ...)`.
+
+### Environment notes (for a fresh container)
+
+- Install R, then `install.packages(c("testthat", "torch"))` — set
+  `USE_BUNDLED_LIBUV=1` if `fs` fails to compile — then
+  `torch::install_torch()`.
+- Run tests: `R CMD INSTALL --no-docs . && cd tests && Rscript testthat.R`
+  (this runs tests inside the package namespace so internals are visible).
+- torch-gated tests skip automatically without libtorch
+  (`tests/testthat/helper-torch.R`).
+
+### Next actions, in priority order
+
+1. **Confirm CI is green** (finishes M1). Check the Actions run for the
+   latest push to `main`; fix anything the `check`/`test-torch` jobs surface.
+   Watch for: hand-written NAMESPACE/man drift (consider generating with
+   roxygen2 instead), and libtorch cache misses.
+2. **Run the sbi head-to-head** (finishes M3, headline claim). Needs
+   `pip install sbi`. Follow `inst/benchmarks/README.md`: gaussian_linear
+   and two_moons, estimators mdn + maf, 10k sims. Commit the comparison
+   CSVs + a short summary to `docs/benchmarks/`. Acceptance: C2ST ≤ 0.60.
+3. **Two-moons calibration study** (finishes M2): run `sbc()` +
+   `plot_coverage()` on the two-moons MDN/NSF fit; save figures to
+   `docs/figures/`; add a README section.
+4. **SLCP with NSF** (finishes M4): `task_slcp()` exists; train NSF at 10k
+   sims, compare to `sbi` via the harness. Expect this to stress leakage
+   correction (uniform prior on [-3,3]^5).
+5. **v0.2 leftovers**: truncated-proposal leakage handling; log-prob
+   normalization tests; TARP coverage; posterior-predictive plots; SIR
+   vignette (add `task_sir()` — see sbibm's SIR definition).
+6. **v0.4 embedding nets**: optional `embedding_net` argument to `npe()`;
+   an nn_module mapping raw x → features trained jointly (append it in each
+   estimator's `build_net`/forward; standardize at embedding output).
+7. **v0.5 sequential NPE (TSNPE or APT/NPE-C)**: multi-round loop
+   `npe_sequential(prior, simulator, x_obs, n_rounds, ...)`; simplest
+   correct start is **TSNPE** (truncated-prior proposals, no loss
+   correction) reusing the existing single-round machinery.
+
+### Known wrinkles / gotchas
+
+- `torch_searchsorted(right = TRUE)` already returns the 1-based bin index
+  for a (K+1)-edge grid (count of elements ≤ value) — do **not** add 1.
+- NSF inversion: spline params must come from the partially reconstructed
+  theta while the inverse acts on base-space values — see `nsf_apply()`'s
+  `values` argument. A regression test covers this.
+- The MDN mean-accuracy tests use tolerance 0.1–0.12; occasional seeds may
+  be near the edge. If flaky in CI, bump sims, not tolerance.
+- `sample()` masks `base::sample` (S3 generic in `R/generics.R`).
+- DESCRIPTION `Version` is dev (`0.2.0.9000`); cut releases when M1–M3 are
+  green.
 
 ---
 

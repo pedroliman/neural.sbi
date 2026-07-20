@@ -52,12 +52,13 @@ train_conditional_de <- function(build_net, log_prob_fn, theta, x,
   for (restart in seq_len(n_restarts)) {
     net <- build_net()
     opt <- torch::optim_adam(net$parameters, lr = lr)
+    scheduler <- torch::lr_reduce_on_plateau(opt, factor = lr_factor,
+                                             patience = lr_patience,
+                                             min_lr = min_lr)
 
-    cur_lr <- lr
     best_val <- Inf
     best_state <- NULL
     epochs_no_improve <- 0L
-    epochs_no_improve_lr <- 0L
     hist_train <- numeric(0)
     hist_val <- numeric(0)
 
@@ -91,21 +92,10 @@ train_conditional_de <- function(build_net, log_prob_fn, theta, x,
         best_val <- val_loss
         best_state <- lapply(net$state_dict(), function(t) t$clone())
         epochs_no_improve <- 0L
-        epochs_no_improve_lr <- 0L
       } else {
         epochs_no_improve <- epochs_no_improve + 1L
-        epochs_no_improve_lr <- epochs_no_improve_lr + 1L
       }
-      # learning-rate decay on plateau
-      if (epochs_no_improve_lr >= lr_patience && cur_lr > min_lr) {
-        cur_lr <- max(cur_lr * lr_factor, min_lr)
-        for (g in seq_along(opt$param_groups)) {
-          opt$param_groups[[g]]$lr <- cur_lr
-        }
-        epochs_no_improve_lr <- 0L
-        verbose_cat(verbose, sprintf("[train] restart %d epoch %d: lr -> %.2g\n",
-                                     restart, epoch, cur_lr))
-      }
+      scheduler$step(val_loss)  # decay lr on validation plateau
       if (verbose && (epoch %% 10L == 0L || epoch == 1L)) {
         verbose_cat(TRUE, sprintf(
           "[train] restart %d epoch %d  val_loss=%.4f  best=%.4f\n",
