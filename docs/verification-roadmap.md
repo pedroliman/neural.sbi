@@ -102,10 +102,16 @@ leakage handling) and documented.
       `train_conditional_de()` in `R/train.R` (exposed via `npe(n_restarts =,
       clip_grad_norm =)`); per-epoch loss history stored in `fit$de$history`.
 - [ ] Better leakage handling (truncated proposals; log-prob normalization tests).
-- [ ] `summary()` methods; tidy (`data.frame`) accessors for samples/diagnostics.
-- [ ] `plot_coverage()`; TARP-style coverage; posterior-predictive plots.
+- [x] `summary()` methods (`nsbi_npe`, `nsbi_posterior`, `nsbi_samples`) and
+      `as.data.frame.nsbi_samples()` tidy accessor (`R/summaries.R`).
+- [x] `plot_coverage()` — nominal vs empirical coverage with Monte-Carlo band
+      (`R/plotting.R`). Still open: TARP-style coverage; posterior-predictive
+      plots.
 - [ ] Vignettes: an applied end-to-end case study (e.g. SIR epidemic).
-- [ ] CI with cached libtorch; `sbibm`-parity benchmark harness in `inst/benchmarks/`.
+- [x] CI with cached libtorch: `.github/workflows/R-CMD-check.yaml` now has a
+      `test-torch` job (installs libtorch, caches it, runs the full suite via
+      `cd tests && Rscript testthat.R` so internals are visible to tests).
+- [ ] `sbibm`-parity benchmark harness in `inst/benchmarks/`.
 
 ### v0.3 — Normalizing-flow density estimators (in progress)
 

@@ -18,6 +18,7 @@ export(c2st)
 export(posterior_predictive)
 export(pairplot)
 export(plot_sbc)
+export(plot_coverage)
 
 S3method(print, nsbi_prior)
 S3method(print, nsbi_npe)
@@ -27,6 +28,11 @@ S3method(print, nsbi_samples)
 
 S3method(sample, default)
 S3method(sample, nsbi_posterior)
+
+S3method(summary, nsbi_samples)
+S3method(summary, nsbi_posterior)
+S3method(summary, nsbi_npe)
+S3method(as.data.frame, nsbi_samples)
 
 S3method(de_log_prob, nsbi_de_lingauss)
 S3method(de_log_prob, nsbi_de_mdn)
