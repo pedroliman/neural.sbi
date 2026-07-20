@@ -87,10 +87,13 @@ c2st(draws_a, draws_b)
 - `"mdn"` (default) — a **Mixture Density Network**: a neural net that outputs a
   Gaussian mixture over parameters. Handles non-Gaussian, multimodal posteriors
   (see `inst/examples/two_moons.R`). Requires `torch`.
+- `"maf"` — a **Masked Autoregressive Flow** (Papamakarios et al., 2017), the
+  default flow family in Python `sbi`. Exact densities via invertible
+  transforms; strong on non-Gaussian posteriors. Requires `torch`.
 - `"linear_gaussian"` — a **closed-form** conditional Gaussian. No neural net, no
   `torch`; *exact* for linear-Gaussian models, great as a fast baseline.
 
-Normalizing flows (MAF, NSF), embedding networks, and sequential NPE are on the
+Neural spline flows (NSF), embedding networks, and sequential NPE are on the
 [roadmap](docs/verification-roadmap.md).
 
 ## How is this verified?

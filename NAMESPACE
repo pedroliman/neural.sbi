@@ -30,8 +30,10 @@ S3method(sample, nsbi_posterior)
 
 S3method(de_log_prob, nsbi_de_lingauss)
 S3method(de_log_prob, nsbi_de_mdn)
+S3method(de_log_prob, nsbi_de_maf)
 S3method(de_sample, nsbi_de_lingauss)
 S3method(de_sample, nsbi_de_mdn)
+S3method(de_sample, nsbi_de_maf)
 
 importFrom(stats, rnorm)
 importFrom(stats, runif)

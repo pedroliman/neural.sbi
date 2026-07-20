@@ -107,14 +107,23 @@ leakage handling) and documented.
 - [ ] Vignettes: an applied end-to-end case study (e.g. SIR epidemic).
 - [ ] CI with cached libtorch; `sbibm`-parity benchmark harness in `inst/benchmarks/`.
 
-### v0.3 — Normalizing-flow density estimators
+### v0.3 — Normalizing-flow density estimators (in progress)
 
-- **MADE** masked MLP → **MAF** (stacked MADE + permutations) and **NSF**
-  (rational-quadratic spline coupling). These are `sbi`'s defaults and handle
-  non-Gaussian posteriors (SLCP, etc.).
-- Same `de_log_prob`/`de_sample` contract; selectable via
-  `density_estimator = "maf" | "nsf"`.
-- Verify each against analytic + `sbi` on SLCP and Two Moons.
+- [x] **MADE** masked MLP → **MAF** (stacked MADE + order-reversal
+      permutations, standard-normal base, identity-initialized transforms,
+      clamped log-scales). Implemented in `R/flows.R`
+      (`made_masks`/`made_module`/`maf_module`/`maf_forward`/`maf_inverse`),
+      trained through the shared engine, selectable via
+      `npe(density_estimator = "maf", n_transforms = )`.
+      Tests: mask autoregressive invariants, forward/inverse round trip,
+      identity-init log-prob equals standard normal, analytic linear-Gaussian
+      parity (`tests/testthat/test-maf.R`).
+- [ ] **NSF** (rational-quadratic spline autoregressive flow) behind
+      `density_estimator = "nsf"`. Plan: reuse `made_masks`; MADE outputs
+      `3K - 1` spline parameters per dimension (K bin widths, K heights,
+      K - 1 interior derivatives, softmax/softplus-constrained, linear tails
+      outside `[-B, B]`, B ≈ 3); same stack/permutation structure as MAF.
+- [ ] Verify each against analytic + `sbi` on SLCP and Two Moons.
 
 ### v0.4 — Embedding networks & structured data
 

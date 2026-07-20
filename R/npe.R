@@ -13,9 +13,11 @@
 #'   used and `theta`/`x` are not supplied.
 #' @param theta,x Optional pre-computed simulations. If supplied, `simulator`
 #'   and `n_simulations` are ignored.
-#' @param density_estimator Either `"mdn"` (neural Mixture Density Network,
-#'   needs `torch`) or `"linear_gaussian"` (closed-form baseline, no `torch`),
-#'   or a function `function(theta, x)` returning a fitted estimator.
+#' @param density_estimator One of `"mdn"` (neural Mixture Density Network,
+#'   needs `torch`), `"maf"` (Masked Autoregressive Flow, needs `torch`), or
+#'   `"linear_gaussian"` (closed-form baseline, no `torch`), or a function
+#'   `function(theta, x)` returning a fitted estimator.
+#' @param n_transforms MAF setting: number of stacked autoregressive transforms.
 #' @param n_components,hidden MDN settings: number of mixture components and a
 #'   vector of hidden-layer widths.
 #' @param max_epochs,batch_size,lr,validation_fraction,patience Neural training
@@ -47,8 +49,8 @@
 #' @export
 npe <- function(prior, simulator = NULL, n_simulations = 1000,
                 theta = NULL, x = NULL,
-                density_estimator = c("mdn", "linear_gaussian"),
-                n_components = 5L, hidden = c(50L, 50L),
+                density_estimator = c("mdn", "maf", "linear_gaussian"),
+                n_components = 5L, n_transforms = 5L, hidden = c(50L, 50L),
                 max_epochs = 500L, batch_size = 100L, lr = 5e-4,
                 validation_fraction = 0.1, patience = 20L,
                 n_restarts = 1L, clip_grad_norm = 5,
@@ -85,7 +87,8 @@ npe <- function(prior, simulator = NULL, n_simulations = 1000,
 
   de <- fit_density_estimator(
     density_estimator, theta_z, x_z,
-    n_components = n_components, hidden = hidden, max_epochs = max_epochs,
+    n_components = n_components, n_transforms = n_transforms,
+    hidden = hidden, max_epochs = max_epochs,
     batch_size = batch_size, lr = lr, validation_fraction = validation_fraction,
     patience = patience, n_restarts = n_restarts,
     clip_grad_norm = clip_grad_norm, seed = seed, verbose = verbose, ...
@@ -113,12 +116,23 @@ fit_density_estimator <- function(density_estimator, theta_z, x_z, ...) {
     return(density_estimator(theta_z, x_z))
   }
   density_estimator <- match.arg(density_estimator,
-                                 c("mdn", "linear_gaussian"))
+                                 c("mdn", "maf", "linear_gaussian"))
   dots <- list(...)
   switch(
     density_estimator,
     mdn = fit_mdn(theta_z, x_z,
                   n_components = dots$n_components %||% 5L,
+                  hidden = dots$hidden %||% c(50L, 50L),
+                  max_epochs = dots$max_epochs %||% 500L,
+                  batch_size = dots$batch_size %||% 100L,
+                  lr = dots$lr %||% 5e-4,
+                  validation_fraction = dots$validation_fraction %||% 0.1,
+                  patience = dots$patience %||% 20L,
+                  n_restarts = dots$n_restarts %||% 1L,
+                  clip_grad_norm = dots$clip_grad_norm %||% 5,
+                  seed = dots$seed, verbose = dots$verbose %||% FALSE),
+    maf = fit_maf(theta_z, x_z,
+                  n_transforms = dots$n_transforms %||% 5L,
                   hidden = dots$hidden %||% c(50L, 50L),
                   max_epochs = dots$max_epochs %||% 500L,
                   batch_size = dots$batch_size %||% 100L,
